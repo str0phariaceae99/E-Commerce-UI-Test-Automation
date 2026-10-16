@@ -15,10 +15,11 @@ from selenium.common.exceptions import NoSuchElementException
 from selenium.webdriver.common.by import By
 
 # ----- Configuración -----
-OLLAMA_API_URL = "http://localhost:11434/api/generate"
-OLLAMA_MODEL = "llama3.2:1b"
+SELF_HEALING_ENABLED = os.getenv("SELF_HEALING_ENABLED", "true").lower() == "true"
+OLLAMA_API_URL = os.getenv("OLLAMA_API_URL", "http://localhost:11434/api/generate")
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.2:1b")
 REPORT_PATH = os.path.join("reports", "healing_events.json")
-REQUEST_TIMEOUT = 30  # segundos
+REQUEST_TIMEOUT = 30
 
 
 class SelfHealingLocator:

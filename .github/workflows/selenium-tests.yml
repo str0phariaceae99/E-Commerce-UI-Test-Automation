@@ -1,0 +1,83 @@
+name: Selenium Tests with Self-Healing
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:  # Permite ejecución manual desde la UI de GitHub
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    env:
+      # Desactiva el self-healing en CI (Ollama no existe en los runners)
+      SELF_HEALING_ENABLED: "false"
+      PYTHON_VERSION: "3.11"
+
+    steps:
+      # ==================== CHECKOUT ====================
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # ==================== PYTHON ====================
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # ==================== CHROME ====================
+      - name: Setup Chrome
+        uses: browser-actions/setup-chrome@v1
+        with:
+          chrome-version: stable
+
+      # ==================== EJECUCIÓN DE TESTS ====================
+      - name: Run tests in headless mode
+        id: pytest
+        run: |
+          pytest tests/ -v \
+            --headless \
+            --html=reports/report.html \
+            --self-contained-html \
+            --tb=short
+        continue-on-error: true
+
+      # ==================== ARTEFACTOS ====================
+      - name: Upload test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-report
+          path: reports/
+          retention-days: 30
+
+      - name: Upload healing events log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: healing-events
+          path: reports/healing_events.json
+          if-no-files-found: ignore
+          retention-days: 30
+
+      # ==================== RESUMEN EN PR ====================
+      - name: Add test summary
+        if: always()
+        run: |
+          echo "## 🧪 Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ -f reports/report.html ]; then
+            echo "✅ HTML report generated successfully" >> $GITHUB_STEP_SUMMARY
+            echo "📊 Download the report from the Artifacts section below" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ No HTML report generated" >> $GITHUB_STEP_SUMMARY
+          fi
